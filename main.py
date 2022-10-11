@@ -16,16 +16,14 @@ def createCard(url: str, question: str, answer: str) -> Card:
 
 def proc_q(question: str):
     processed_question = re.split('[^a-zA-Z0-9]', question)
-    processed_question = [q.lower() for q in processed_question]
+    processed_question = [q.lower() for q in processed_question if len(q) >= 1]
     return processed_question
     
 import multiprocessing
 
 def _get_cards(prop):
     (url, cookies, sel_opts) = prop
-    print(f"accessing {url}")
     retval = (url, lib.get_cards(url, cookies, sel_opts))
-    print(f"done {url}")
     return retval
 
 def get_cards(urls: list[str],cookies:dict|None = None, selenium_opts:Options|None=None):
@@ -33,25 +31,30 @@ def get_cards(urls: list[str],cookies:dict|None = None, selenium_opts:Options|No
         cpus = multiprocessing.cpu_count()
     except NotADirectoryError:
         cpus = 2
+    print(f"CPUs: {cpus}")
     pool = multiprocessing.Pool(processes=cpus)
     props = [(url, cookies, selenium_opts) for url in urls]
-
+    
     card_url = pool.map(_get_cards, props)
 
     url_lookup: dict[str, list[Card]] = dict()
     proc_q_lookup: dict[str, list[Card]] = dict()
     cards: list[Card] = []
     for (url, _cards) in card_url:
+        print(f"cards len: {len(_cards)}")
         cards_vect = [createCard(url, qu, ans) for qu, ans in _cards.items()]
+        print(f"cards_vect: {len(cards_vect)}")
         cards.extend(cards_vect)
         url_lookup[url] = cards_vect
         for card in cards_vect:
+            if len(card.processed_question) < 2:
+                # blank
+                continue
             if card.processed_question not in proc_q_lookup:
+
                 proc_q_lookup[card.processed_question] = []
             proc_q_lookup[card.processed_question].append(card)
     return (cards, url_lookup, proc_q_lookup)
-
-
 
 if __name__ == "__main__":
     URLS = [
@@ -68,9 +71,9 @@ if __name__ == "__main__":
         "https://quizlet.com/249104008/human-animal-final-flash-cards/",
         "https://quizlet.com/231579852/acbs-quiz-questions-flash-cards/",
     ]
-    selenium_opts = Options()
-    selenium_opts.headless = True
-    (cards, url_lookup, proc_q_lookup) = get_cards(URLS[:3], selenium_opts=selenium_opts)
+    user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36'
+    # URLS = ["https://quizlet.com/231851219/animal-midterm-flash-cards/"]
+    (cards, url_lookup, proc_q_lookup) = get_cards(URLS)
     more_than_1_answer = [cards for _q, cards in proc_q_lookup.items() if len(cards) > 1]
     url_and_ans = lambda cards: "\n".join([
                                             f" - {card.answer} ({card.url})"
@@ -78,12 +81,17 @@ if __name__ == "__main__":
                                           ])
     proc_q_to_q = lambda proc_q: next(card.question 
         for card in proc_q_lookup[proc_q] if card.processed_question == proc_q)
-    print(f"{len(more_than_1_answer)}processed questions with more than 1 answer")
+    print(f"{len(more_than_1_answer)}/{len(proc_q_lookup)} processed questions with more than 1 answer")
     print("\n".join([
                         f"*****\n{proc_q_to_q(proc_q)}:\n{url_and_ans(cards)}\n*****"
                         for proc_q, cards in proc_q_lookup.items()
                         if len(cards) > 1
                     ]))
+
+    fmt_cards = "\n".join([
+                              f"{i}. \"{card.processed_question}\"\n - \"{card.answer}\"" 
+                              for i, card in enumerate(cards)])
+    print(f"*** Cards ***\n{fmt_cards}")
 
 
 
