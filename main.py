@@ -26,7 +26,10 @@ def _get_cards(prop):
     retval = (url, lib.get_cards(url, cookies, sel_opts))
     return retval
 
-def get_cards(urls: list[str],cookies:dict|None = None, selenium_opts:Options|None=None):
+def get_cards(urls: list[str], cookies:dict|None = None, selenium_opts:Options|None=None):
+    """
+    Main function to gather cards from different URLs
+    """
     try:
         cpus = multiprocessing.cpu_count()
     except NotADirectoryError:
@@ -56,6 +59,29 @@ def get_cards(urls: list[str],cookies:dict|None = None, selenium_opts:Options|No
             proc_q_lookup[card.processed_question].append(card)
     return (cards, url_lookup, proc_q_lookup)
 
+def pp_cards(cards: list[Card]):
+    fmt_cards = "\n".join([
+                              f"{i}. \"{card.processed_question}\"\n - \"{card.answer}\"" 
+                              for i, card in enumerate(cards)])
+    return fmt_cards
+
+def proc_q_to_q(proc_q: str, proc_q_lookup: dict[str, list[Card]]):
+    return next(card.question 
+        for card in proc_q_lookup[proc_q] if card.processed_question == proc_q)
+
+def url_and_ans(cards: list[Card]): 
+    return "\n".join([
+        f" - \"{card.answer}\" ({card.url})"
+        for card in cards
+    ])
+
+def pp_proc_questions(proc_q_lookup: dict[str, list[Card]]):
+    return "\n".join([
+        f"{i}. {proc_q_to_q(proc_q, proc_q_lookup)}\n{url_and_ans(cards)}"
+        for i, (proc_q, cards) in enumerate(proc_q_lookup.items())
+    ])
+    
+
 if __name__ == "__main__":
     URLS = [
         "https://quizlet.com/555255851/acbs-160-midterm-study-guide-flash-cards/",
@@ -71,27 +97,13 @@ if __name__ == "__main__":
         "https://quizlet.com/249104008/human-animal-final-flash-cards/",
         "https://quizlet.com/231579852/acbs-quiz-questions-flash-cards/",
     ]
-    user_agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36'
     # URLS = ["https://quizlet.com/231851219/animal-midterm-flash-cards/"]
     (cards, url_lookup, proc_q_lookup) = get_cards(URLS)
-    more_than_1_answer = [cards for _q, cards in proc_q_lookup.items() if len(cards) > 1]
-    url_and_ans = lambda cards: "\n".join([
-                                            f" - {card.answer} ({card.url})"
-                                            for card in cards
-                                          ])
-    proc_q_to_q = lambda proc_q: next(card.question 
-        for card in proc_q_lookup[proc_q] if card.processed_question == proc_q)
+    more_than_1_answer = {_q: cards 
+        for _q, cards in proc_q_lookup.items() if len(cards) > 1}
+    print(pp_proc_questions(more_than_1_answer))
     print(f"{len(more_than_1_answer)}/{len(proc_q_lookup)} processed questions with more than 1 answer")
-    print("\n".join([
-                        f"*****\n{proc_q_to_q(proc_q)}:\n{url_and_ans(cards)}\n*****"
-                        for proc_q, cards in proc_q_lookup.items()
-                        if len(cards) > 1
-                    ]))
-
-    fmt_cards = "\n".join([
-                              f"{i}. \"{card.processed_question}\"\n - \"{card.answer}\"" 
-                              for i, card in enumerate(cards)])
-    print(f"*** Cards ***\n{fmt_cards}")
+    # print(f"*** Cards ***\n{pretty_print_cards(cards)}")
 
 
 
