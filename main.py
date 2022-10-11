@@ -19,12 +19,29 @@ def proc_q(question: str):
     processed_question = [q.lower() for q in processed_question]
     return processed_question
     
+import multiprocessing
+
+def _get_cards(prop):
+    (url, cookies, sel_opts) = prop
+    print(f"accessing {url}")
+    retval = (url, lib.get_cards(url, cookies, sel_opts))
+    print(f"done {url}")
+    return retval
+
 def get_cards(urls: list[str],cookies:dict|None = None, selenium_opts:Options|None=None):
-    cards: list[Card] = []
+    try:
+        cpus = multiprocessing.cpu_count()
+    except NotADirectoryError:
+        cpus = 2
+    pool = multiprocessing.Pool(processes=cpus)
+    props = [(url, cookies, selenium_opts) for url in urls]
+
+    card_url = pool.map(_get_cards, props)
+
     url_lookup: dict[str, list[Card]] = dict()
     proc_q_lookup: dict[str, list[Card]] = dict()
-    for url in urls:
-        _cards = lib.get_cards(url, cookies, selenium_opts)
+    cards: list[Card] = []
+    for (url, _cards) in card_url:
         cards_vect = [createCard(url, qu, ans) for qu, ans in _cards.items()]
         cards.extend(cards_vect)
         url_lookup[url] = cards_vect
@@ -32,8 +49,9 @@ def get_cards(urls: list[str],cookies:dict|None = None, selenium_opts:Options|No
             if card.processed_question not in proc_q_lookup:
                 proc_q_lookup[card.processed_question] = []
             proc_q_lookup[card.processed_question].append(card)
-
     return (cards, url_lookup, proc_q_lookup)
+
+
 
 if __name__ == "__main__":
     URLS = [

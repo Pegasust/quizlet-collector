@@ -1,4 +1,4 @@
-import chromedriver_binary
+import chromedriver_binary # This adds chrome to PATH (somehow...)
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
