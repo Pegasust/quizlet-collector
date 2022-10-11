@@ -4,7 +4,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
 def get_cards(url:str, cookies: dict | None =None, selenium_opts: Options|None=None):
-    driver = webdriver.Chrome() if not selenium_opts else webdriver.Chrome(selenium_opts)
+    driver = webdriver.Chrome() if not selenium_opts else webdriver.Chrome(options=selenium_opts)
     if cookies:
         driver.add_cookie(cookies)
     driver.get(url)
