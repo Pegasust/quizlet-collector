@@ -11,13 +11,16 @@ class Card:
     processed_question: str
 
 def createCard(url: str, question: str, answer: str) -> Card:
-    processed_question = proc_q(question)
+    processed_question = sentence_tokens(question)
     return Card(url, question, answer, ' '.join(processed_question))
 
-def proc_q(question: str):
-    processed_question = re.split('[^a-zA-Z0-9]', question)
-    processed_question = [q.lower() for q in processed_question if len(q) >= 1]
-    return processed_question
+def sentence_tokens(sentence: str):
+    """
+    Returns a string of meaning for a given sentence
+    """
+    meaning_tokens = re.split('[^a-zA-Z0-9]', sentence)
+    meaning_tokens = [q.lower() for q in meaning_tokens if len(q) >= 1]
+    return meaning_tokens
     
 import multiprocessing
 
@@ -60,9 +63,13 @@ def get_cards(urls: list[str], cookies:dict|None = None, selenium_opts:Options|N
     return (cards, url_lookup, proc_q_lookup)
 
 def pp_cards(cards: list[Card]):
+    """
+    Pretty print the list of cards
+    """
     fmt_cards = "\n".join([
-                              f"{i}. \"{card.processed_question}\"\n - \"{card.answer}\"" 
-                              for i, card in enumerate(cards)])
+        f"{i}. \"{card.processed_question}\"\n - \"{card.answer}\"" 
+        for i, card in enumerate(cards)
+    ])
     return fmt_cards
 
 def proc_q_to_q(proc_q: str, proc_q_lookup: dict[str, list[Card]]):
@@ -70,17 +77,24 @@ def proc_q_to_q(proc_q: str, proc_q_lookup: dict[str, list[Card]]):
         for card in proc_q_lookup[proc_q] if card.processed_question == proc_q)
 
 def url_and_ans(cards: list[Card]): 
+    """
+    Pretty prints answers and cite url where the answers are from
+    """
+    # attempt to dedup meaning
     return "\n".join([
         f" - \"{card.answer}\" ({card.url})"
         for card in cards
     ])
 
 def pp_proc_questions(proc_q_lookup: dict[str, list[Card]]):
+    """
+    Pretty prints the processed questions (dedup from sentence_value())
+    """
     return "\n".join([
         f"{i}. {proc_q_to_q(proc_q, proc_q_lookup)}\n{url_and_ans(cards)}"
         for i, (proc_q, cards) in enumerate(proc_q_lookup.items())
     ])
-    
+
 
 if __name__ == "__main__":
     URLS = [
@@ -103,7 +117,6 @@ if __name__ == "__main__":
         for _q, cards in proc_q_lookup.items() if len(cards) > 1}
     print(pp_proc_questions(more_than_1_answer))
     print(f"{len(more_than_1_answer)}/{len(proc_q_lookup)} processed questions with more than 1 answer")
-    # print(f"*** Cards ***\n{pretty_print_cards(cards)}")
 
 
 
