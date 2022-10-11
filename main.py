@@ -80,10 +80,25 @@ def url_and_ans(cards: list[Card]):
     """
     Pretty prints answers and cite url where the answers are from
     """
-    # attempt to dedup meaning
+    # attempt to dedup meaning of answers
+    if any((cards[i].processed_question != cards[i-1].processed_question 
+               for i in range(1, len(cards)))):
+        # cards contain different questions, so it's not safe to group similar answers together
+        return "\n".join([
+            f" - \"{card.answer}\" ({card.url})"
+            for card in cards
+        ])
+    ans_meaning_to_cards = dict()
+    for card in cards:
+        ans_meaning = " ".join(sentence_tokens(card.answer))
+        if ans_meaning not in ans_meaning_to_cards:
+            ans_meaning_to_cards[ans_meaning] = []
+        ans_meaning_to_cards[ans_meaning].append(card)
+    group_urls = lambda cards: " ".join((card.url for card in cards))
+    first_meaning = lambda meaning: ans_meaning_to_cards[meaning][0].answer
     return "\n".join([
-        f" - \"{card.answer}\" ({card.url})"
-        for card in cards
+        f"- \"{first_meaning(meaning)}\" ({group_urls(cards)})"
+        for meaning, cards in ans_meaning_to_cards.items()
     ])
 
 def pp_proc_questions(proc_q_lookup: dict[str, list[Card]]):
@@ -113,10 +128,12 @@ if __name__ == "__main__":
     ]
     # URLS = ["https://quizlet.com/231851219/animal-midterm-flash-cards/"]
     (cards, url_lookup, proc_q_lookup) = get_cards(URLS)
-    more_than_1_answer = {_q: cards 
-        for _q, cards in proc_q_lookup.items() if len(cards) > 1}
-    print(pp_proc_questions(more_than_1_answer))
-    print(f"{len(more_than_1_answer)}/{len(proc_q_lookup)} processed questions with more than 1 answer")
+    # more_than_1_answer = {_q: cards 
+    #     for _q, cards in proc_q_lookup.items() if len(cards) > 1}
+    # print(pp_proc_questions(more_than_1_answer))
+    # print(f"{len(more_than_1_answer)}/{len(proc_q_lookup)} processed questions with more than 1 answer")
+    print(pp_proc_questions(proc_q_lookup))
+
 
 
 
